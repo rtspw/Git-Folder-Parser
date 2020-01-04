@@ -1,26 +1,11 @@
 'use strict'
 
-const fs = require('fs')
 const path = require('path')
+const fs = require('fs')
+const zlib = require('zlib')
 
-class GitPath {
-  constructor(basePath) {
-    this.basePath = basePath
-    this.refs = {
-      heads: path.join(basePath, 'heads'),
-      remotes: path.join(basePath, 'remotes'),
-      tags: path.join(basePath, 'tags'),
-    }
-    this.objects = {
-      pack: path.join(basePath, 'objects', 'pack'),
-      info: path.join(basePath, 'objects', 'info'),
-    }
-  }
-
-  getObjectPath(hash) {
-    return path.join(this.basePath, 'objects', hash.substring(0, 2), hash.substring(2))
-  }
-}
+const GitPath = require('./git-path')
+const GitFileReader = require('./git-file-reader')
 
 const parse = gitFolderAbsolutePath => {
   const gitFolderPath = (() => {
@@ -29,10 +14,22 @@ const parse = gitFolderAbsolutePath => {
     return gitFolderAbsolutePath
   })()
   const gitPath = new GitPath(gitFolderPath)
-  console.log(gitPath.getObjectPath('abcdefg'))
+
+  const headNames = fs.readdirSync(gitPath.refs.heads)
+  const headMap = {}
+  headNames.forEach(headName => {
+      const headPath = gitPath.getHeadRefPath(headName)
+      const hash = GitFileReader.readRefSync(headPath)
+      headMap[headName] = hash
+  })
+
+  for (const headName in headMap) {
+    const a = GitFileReader.readCommitBlobSync(gitPath.getObjectPath(headMap[headName]))
+    console.log(a)
+  }
 }
 
-parse(path.resolve(__dirname, '../Advent\ Calendar\ 2019/.git'))
 
+parse(path.resolve(__dirname, '../Advent\ Calendar\ 2019/.git'))
 
 module.exports = { parse }
