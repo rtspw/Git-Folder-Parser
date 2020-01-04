@@ -1,7 +1,6 @@
 'use strict'
 
 const path = require('path')
-const fs = require('fs')
 
 class GitPath {
   constructor(basePath) {
@@ -31,24 +30,6 @@ class GitPath {
 
   getTagRefPath(tagName) {
     return path.join(this.refs.tags, tagName)
-  }
-
-  getAllObjectHashes({ asPaths } = { asPaths: false }) {
-    const objectDirPath = path.join(this.basePath, 'objects')
-    const objectPrefixDirs = fs.readdirSync(objectDirPath).filter(dirName => dirName.length === 2)
-    const objectHashList = []
-    objectPrefixDirs.forEach(prefix => {
-      const objectHashes = fs.readdirSync(path.join(objectDirPath, prefix))
-      objectHashes.forEach(objectHash => {
-        const fullHash = prefix + objectHash
-        if (asPaths) {
-          objectHashList.push(this.getObjectPath(fullHash))
-          return 
-        }
-        objectHashList.push(fullHash)
-      })
-    })
-    return objectHashList
   }
 }
 
