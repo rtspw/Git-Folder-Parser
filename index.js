@@ -6,6 +6,7 @@ const zlib = require('zlib')
 
 const GitPath = require('./git-path')
 const GitFileReader = require('./git-file-reader')
+const GitFileParser = require('./git-file-parser')
 
 const parse = gitFolderAbsolutePath => {
   const gitFolderPath = (() => {
@@ -24,8 +25,8 @@ const parse = gitFolderAbsolutePath => {
   })
 
   for (const headName in headMap) {
-    const a = GitFileReader.readCommitBlobSync(gitPath.getObjectPath(headMap[headName]))
-    console.log(a)
+    const commitText = GitFileReader.readCommitBlobSync(gitPath.getObjectPath(headMap[headName]))
+    const commit = GitFileParser.parseCommit(commitText)
   }
 }
 
