@@ -18,23 +18,23 @@ const GitFileParser = {
       parents.push(allTokens[lineNum][1])
     })
     const authorLineNum = 2 + numOfParents
+    const committerLineNum = authorLineNum + 1
+    const messageLineNum = committerLineNum + 1
     const authorLine = allTokens[authorLineNum]
+    const committerLine = allTokens[committerLineNum]
+    const message = lineTokens[messageLineNum]
     const author = {
       username: authorLine.slice(1, -3).join(' '),
       email: authorLine[authorLine.length - 3],
     }
     const authorDate = new Date(convertSecondsToMilliseconds(authorLine[authorLine.length - 2]))
     const authorTimezone = authorLine[authorLine.length - 1]
-    const committerLineNum = authorLineNum + 1
-    const committerLine = allTokens[committerLineNum]
     const committer = {
       username: committerLine.slice(1, -3).join(' '),
       email: committerLine[committerLine.length - 3],
     }
     const committerDate = new Date(convertSecondsToMilliseconds(committerLine[committerLine.length - 2]))
     const committerTimezone = committerLine[committerLine.length - 1]
-    const messageLineNum = committerLineNum + 1
-    const message = lineTokens[messageLineNum]
     return {
       tree,
       parents,
