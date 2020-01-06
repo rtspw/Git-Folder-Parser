@@ -2,35 +2,65 @@
 
 const path = require('path')
 const fs = require('fs')
-const zlib = require('zlib')
 
 const GitPath = require('./git-path')
 const GitFileReader = require('./git-file-reader')
 const GitFileParser = require('./git-file-parser')
 
-const parse = gitFolderAbsolutePath => {
-  const gitFolderPath = (() => {
-    if (gitFolderAbsolutePath == null) 
-      return path.resolve(process.cwd(), '.git')
-    return gitFolderAbsolutePath
-  })()
-  const gitPath = new GitPath(gitFolderPath)
-
+function getHeads(gitPath) {
   const headNames = fs.readdirSync(gitPath.refs.heads)
-  const headMap = {}
+  const heads = {}
   headNames.forEach(headName => {
       const headPath = gitPath.getHeadRefPath(headName)
       const hash = GitFileReader.readRefSync(headPath)
-      headMap[headName] = hash
+      heads[headName] = hash
   })
+  return heads
+}
 
-  for (const headName in headMap) {
-    const commitText = GitFileReader.readCommitBlobSync(gitPath.getObjectPath(headMap[headName]))
+class GitFolderParser {
+  constructor(gitFolderAbsolutePath) {
+    const gitFolderPath = (() => {
+      if (gitFolderAbsolutePath == null) 
+        return path.resolve(process.cwd(), '.git')
+      return gitFolderAbsolutePath
+    })()
+    this.gitPath = new GitPath(gitFolderPath)
+    this.heads = getHeads(this.gitPath)
+  }
+
+  getCommitDataFromHash(commitHash) {
+    const commitPath = this.gitPath.getObjectPath(commitHash)
+    const commitText = GitFileReader.readCommitBlobSync(commitPath)
     const commit = GitFileParser.parseCommit(commitText)
+    return commit
+  }
+
+  parse() {
+    const visitedCommits = new Set()
+    const commitQueue = []
+    const commits = {}
+  
+    for (const headName in this.heads) {
+      const headHash = this.heads[headName]
+      const commit = this.getCommitDataFromHash(headHash)
+      commits[headHash] = commit
+      visitedCommits.add(headHash)
+      commitQueue.push(...commit.parents)
+    }
+  
+    while (commitQueue.length > 0) {
+      const frontCommitHash = commitQueue.shift()
+      const commit = this.getCommitDataFromHash(frontCommitHash)
+      commits[frontCommitHash] = commit
+      visitedCommits.add(frontCommitHash)
+      commitQueue.push(...commit.parents)
+    }
+
+    return commits
   }
 }
 
+console.log((new GitFolderParser()).parse())
 
-parse(path.resolve(__dirname, '../Advent\ Calendar\ 2019/.git'))
-
-module.exports = { parse }
+module.exports = GitFolderParser

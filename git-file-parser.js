@@ -9,7 +9,8 @@ function convertSecondsToMilliseconds(seconds) {
 const GitFileParser = {
 
   parseCommit(commitText) {
-    const numOfParents = commitText.match(/parent/g).length
+    const parentMatches = commitText.match(/parent/g)
+    const numOfParents = parentMatches ? parentMatches.length : 0
     const lineTokens = commitText.split(/\n+|\u0000/)
     const allTokens = lineTokens.map(line => line.split(/\s/))
     const tree = allTokens[1][1]
