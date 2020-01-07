@@ -11,11 +11,22 @@ function getHeads(gitPath) {
   const headNames = fs.readdirSync(gitPath.refs.heads)
   const heads = {}
   headNames.forEach(headName => {
-      const headPath = gitPath.getHeadRefPath(headName)
-      const hash = GitFileReader.readRefSync(headPath)
-      heads[headName] = hash
+    const headPath = gitPath.getHeadRefPath(headName)
+    const hash = GitFileReader.readRefSync(headPath)
+    heads[headName] = hash
   })
   return heads
+}
+
+function getTags(gitPath) {
+  const tagNames = fs.readdirSync(gitPath.refs.tags)
+  const tags = {}
+  tagNames.forEach(tagName => {
+    const tagPath = gitPath.getTagRefPath(tagName)
+    const hash = GitFileReader.readRefSync(tagPath)
+    tags[tagName] = hash
+  })
+  return tags
 }
 
 class GitFolderParser {
@@ -27,6 +38,7 @@ class GitFolderParser {
     })()
     this.gitPath = new GitPath(gitFolderPath)
     this.heads = getHeads(this.gitPath)
+    this.tags = getTags(this.gitPath)
   }
 
   getCommitDataFromHash(commitHash) {
@@ -40,7 +52,6 @@ class GitFolderParser {
     const visitedCommits = new Set()
     const commitQueue = []
     const commits = {}
-  
     for (const headName in this.heads) {
       const headHash = this.heads[headName]
       const commit = this.getCommitDataFromHash(headHash)
@@ -48,19 +59,16 @@ class GitFolderParser {
       visitedCommits.add(headHash)
       commitQueue.push(...commit.parents)
     }
-  
     while (commitQueue.length > 0) {
       const frontCommitHash = commitQueue.shift()
+      if (visitedCommits.has(frontCommitHash)) continue
       const commit = this.getCommitDataFromHash(frontCommitHash)
       commits[frontCommitHash] = commit
       visitedCommits.add(frontCommitHash)
       commitQueue.push(...commit.parents)
     }
-
     return commits
   }
 }
-
-console.log((new GitFolderParser()).parse())
 
 module.exports = GitFolderParser
