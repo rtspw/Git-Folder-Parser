@@ -72,24 +72,24 @@ function parseCommit(commitText: string): CommitData {
   };
 }
 
-function getHeads(gitPath: string): {[key: string]: string} {
-  const headsPath: string = path.join(gitPath, 'refs', 'heads');
-  const headNames: Array<string> = fs.readdirSync(headsPath);
+function getHeads(gitFolderPath: string): {[key: string]: string} {
+  const headDirPath: string = path.join(gitFolderPath, 'refs', 'heads');
+  const headNames: Array<string> = fs.readdirSync(headDirPath);
   const heads: {[key: string]: string} = {};
   headNames.forEach(headName => {
-    const headPath = path.join(headsPath, headName);
+    const headPath = path.join(headDirPath, headName);
     const hash = fs.readFileSync(headPath, 'utf-8').trim();
     heads[headName] = hash;
   });
   return heads;
 }
 
-function getTags(gitPath: string): {[key: string]: string} {
-  const tagsPath: string = path.join(gitPath, 'refs', 'tags');
-  const tagNames: Array<string> = fs.readdirSync(tagsPath);
+function getTags(gitFolderPath: string): {[key: string]: string} {
+  const tagDirPath: string = path.join(gitFolderPath, 'refs', 'tags');
+  const tagNames: Array<string> = fs.readdirSync(tagDirPath);
   const tags: {[key: string]: string} = {};
   tagNames.forEach(tagName => {
-    const tagPath = path.join(tagsPath, tagName);
+    const tagPath = path.join(tagDirPath, tagName);
     const hash = fs.readFileSync(tagPath, 'utf-8').trim();
     tags[tagName] = hash;
   });
@@ -132,7 +132,6 @@ function getCommitList(gitFolderPath: string, heads: {[key: string]: string}): {
   return commits;
 }
 
-
 function parseGitFolder(gitFolderAbsolutePath?: string): GitProjectData | null {
   const gitFolderPath: string = (() => {
     if (gitFolderAbsolutePath == null)
@@ -147,7 +146,6 @@ function parseGitFolder(gitFolderAbsolutePath?: string): GitProjectData | null {
   const heads = getHeads(gitFolderPath);
   const tags = getTags(gitFolderPath);
   const commits = getCommitList(gitFolderPath, heads);
-
   return {
     heads,
     tags,
