@@ -72,59 +72,85 @@ function parseCommit(commitText: string): CommitData {
   };
 }
 
-function getHeads(gitFolderPath: string): {[key: string]: string} {
+async function getHeads(gitFolderPath: string): Promise<{[key: string]: string}> {
   const headDirPath: string = path.join(gitFolderPath, 'refs', 'heads');
-  const headNames: Array<string> = fs.readdirSync(headDirPath);
-  const heads: {[key: string]: string} = {};
-  headNames.forEach(headName => {
-    const headPath = path.join(headDirPath, headName);
-    const hash = fs.readFileSync(headPath, 'utf-8').trim();
-    heads[headName] = hash;
+  const headNames: Array<string> = await new Promise((resolve, reject) => {
+    fs.readdir(headDirPath, (err, files) => err ? reject(err) : resolve(files));
   });
+  const heads: {[key: string]: string} = {};
+  const willBeHeadHashes: Array<Promise<string>> = headNames.map(headName => 
+    new Promise((resolve, reject) => {
+      const headPath: string = path.join(headDirPath, headName);
+      fs.readFile(headPath, 'utf-8', (err, data) => {
+        err ? reject(err) : resolve(data.trim());
+      })
+    })
+  );
+  await Promise.all(willBeHeadHashes).then(hashes => {
+    hashes.forEach((hash, index) => heads[headNames[index]] = hash);
+  })
   return heads;
 }
 
-function getTags(gitFolderPath: string): {[key: string]: string} {
+async function getTags(gitFolderPath: string): Promise<{[key: string]: string}> {
   const tagDirPath: string = path.join(gitFolderPath, 'refs', 'tags');
-  const tagNames: Array<string> = fs.readdirSync(tagDirPath);
-  const tags: {[key: string]: string} = {};
-  tagNames.forEach(tagName => {
-    const tagPath = path.join(tagDirPath, tagName);
-    const hash = fs.readFileSync(tagPath, 'utf-8').trim();
-    tags[tagName] = hash;
+  const tagNames: Array<string> = await new Promise((resolve, reject) => {
+    fs.readdir(tagDirPath, (err, files) => err ? reject(err) : resolve(files));
   });
+  const tags: {[key: string]: string} = {};
+  const willBeTagHashes: Array<Promise<string>> = tagNames.map(tagName => 
+    new Promise((resolve, reject) => {
+      const tagPath: string = path.join(tagDirPath, tagName);
+      fs.readFile(tagPath, 'utf-8', (err, data) => {
+        err ? reject(err) : resolve(data.trim());
+      })
+    })
+  );
+  await Promise.all(willBeTagHashes).then(hashes => {
+    hashes.forEach((hash, index) => tags[tagNames[index]] = hash);
+  })
   return tags;
 }
 
-function readCommitBlobSync(commitHashPath: string): string {
-  const commitBlob: Buffer = fs.readFileSync(commitHashPath);
-  return zlib.inflateSync(commitBlob).toString();
+async function readCommitBlob(commitHashPath: string): Promise<string> {
+  const commitBlob: Buffer = await new Promise((resolve, reject) => {
+    fs.readFile(commitHashPath, (err, data) => err ? reject(err) : resolve(data));
+  });
+  return new Promise((resolve, reject) => {
+    zlib.inflate(commitBlob, (err, data) => err ? reject(err) : resolve(data.toString()));
+  });
 }
 
-function getCommitDataFromHash(gitFolderPath: string, commitHash: string): CommitData {
+async function getCommitDataFromHash(gitFolderPath: string, commitHash: string): Promise<CommitData> {
   const commitPath: string = path.join(
     gitFolderPath, 'objects', commitHash.substring(0, 2), commitHash.substring(2)
   );
-  const commitText: string = readCommitBlobSync(commitPath);
+  const commitText: string = await readCommitBlob(commitPath);
   const commit: CommitData = parseCommit(commitText);
   return commit;
 }
 
-function getCommitList(gitFolderPath: string, heads: {[key: string]: string}): {[key: string]: CommitData} {
+async function getCommitList(gitFolderPath: string, heads: {[key: string]: string}): Promise<{[key: string]: CommitData}> {
   const visitedCommits: Set<string> = new Set();
   const commitQueue: Array<string> = [];
   const commits: {[key: string]: CommitData} = {};
-  for (const headName in heads) {
+  const headNames: Array<string> = Object.keys(heads);
+  const headHashes: Array<string> = Object.values(heads);
+  const willBeCommitDataList: Array<Promise<CommitData>> = headNames.map(headName => {
     const headHash: string = heads[headName];
-    const commit: CommitData = getCommitDataFromHash(gitFolderPath, headHash);
-    commits[headHash] = commit;
-    visitedCommits.add(headHash);
-    commitQueue.push(...commit.parents);
-  }
+    return getCommitDataFromHash(gitFolderPath, headHash);
+  });
+  await Promise.all(willBeCommitDataList).then(commitDataList => {
+    commitDataList.forEach((commitData, index) => {
+      commits[headHashes[index]] = commitData;
+      visitedCommits.add(headHashes[index]);
+      commitQueue.push(...commitData.parents);
+    });
+  });
   while (commitQueue.length > 0) {
     const frontCommitHash: string | undefined = commitQueue.shift();
     if (visitedCommits.has(frontCommitHash!)) continue;
-    const commit: CommitData = getCommitDataFromHash(gitFolderPath, frontCommitHash!);
+    const commit: CommitData = await getCommitDataFromHash(gitFolderPath, frontCommitHash!);
     commits[frontCommitHash!] = commit;
     visitedCommits.add(frontCommitHash!);
     commitQueue.push(...commit.parents);
@@ -132,7 +158,7 @@ function getCommitList(gitFolderPath: string, heads: {[key: string]: string}): {
   return commits;
 }
 
-function parseGitFolder(gitFolderAbsolutePath?: string): GitProjectData | null {
+async function parseGitFolder(gitFolderAbsolutePath?: string): Promise<GitProjectData | null> {
   const gitFolderPath: string = (() => {
     if (gitFolderAbsolutePath == null)
       return path.resolve(process.cwd(), '.git');
@@ -143,9 +169,9 @@ function parseGitFolder(gitFolderAbsolutePath?: string): GitProjectData | null {
     return null;
   }
 
-  const heads = getHeads(gitFolderPath);
-  const tags = getTags(gitFolderPath);
-  const commits = getCommitList(gitFolderPath, heads);
+  const heads = await getHeads(gitFolderPath);
+  const tags = await getTags(gitFolderPath);
+  const commits = await getCommitList(gitFolderPath, heads);
   return {
     heads,
     tags,
