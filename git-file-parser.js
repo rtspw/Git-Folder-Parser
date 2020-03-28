@@ -1,9 +1,11 @@
 'use strict'
 
-const Util = require('./util')
-
 function convertSecondsToMilliseconds(seconds) {
   return seconds * 1000
+}
+
+function range(start, length) {
+  return [...Array(length).keys()].map(i => i + start)
 }
 
 const GitFileParser = {
