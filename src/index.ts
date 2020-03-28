@@ -155,7 +155,4 @@ function parseGitFolder(gitFolderAbsolutePath?: string): GitProjectData | null {
   };
 }
 
-export {
-  getCommitDataFromHash,
-  parseGitFolder,
-};
+export = parseGitFolder;
