@@ -110,21 +110,7 @@ function getCommitDataFromHash(gitFolderPath: string, commitHash: string): Commi
   return commit;
 }
 
-
-
-function parseGitFolder(gitFolderAbsolutePath?: string): GitProjectData | null {
-  const gitFolderPath: string = (() => {
-    if (gitFolderAbsolutePath == null)
-      return path.resolve(process.cwd(), '.git');
-    return gitFolderAbsolutePath;
-  })();
-
-  if (!fs.existsSync(gitFolderPath)) {
-    return null;
-  }
-
-  const heads = getHeads(gitFolderPath);
-  const tags = getTags(gitFolderPath);
+function getCommitList(gitFolderPath: string, heads: {[key: string]: string}): {[key: string]: CommitData} {
   const visitedCommits: Set<string> = new Set();
   const commitQueue: Array<string> = [];
   const commits: {[key: string]: CommitData} = {};
@@ -143,6 +129,24 @@ function parseGitFolder(gitFolderAbsolutePath?: string): GitProjectData | null {
     visitedCommits.add(frontCommitHash!);
     commitQueue.push(...commit.parents);
   }
+  return commits;
+}
+
+
+function parseGitFolder(gitFolderAbsolutePath?: string): GitProjectData | null {
+  const gitFolderPath: string = (() => {
+    if (gitFolderAbsolutePath == null)
+      return path.resolve(process.cwd(), '.git');
+    return gitFolderAbsolutePath;
+  })();
+
+  if (!fs.existsSync(gitFolderPath)) {
+    return null;
+  }
+
+  const heads = getHeads(gitFolderPath);
+  const tags = getTags(gitFolderPath);
+  const commits = getCommitList(gitFolderPath, heads);
 
   return {
     heads,
@@ -151,6 +155,7 @@ function parseGitFolder(gitFolderAbsolutePath?: string): GitProjectData | null {
   };
 }
 
-console.log(parseGitFolder())
-
-exports = parseGitFolder;
+export {
+  getCommitDataFromHash,
+  parseGitFolder,
+};
